@@ -2,42 +2,44 @@ package com.otmanethedev.beers.presentation.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.filter
 import com.otmanethedev.beers.domain.models.Beer
-import com.otmanethedev.beers.domain.usecases.GetBeersListUseCase
+import com.otmanethedev.beers.domain.usecases.GetPaginatedBeerListUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
 class BeerListViewModel @Inject constructor(
-    private val getBeersListUseCase: GetBeersListUseCase
+    getPaginatedBeerListUseCase: GetPaginatedBeerListUseCase
 ) : ViewModel() {
 
-    sealed class BeerListUiState {
-        data object Idle : BeerListUiState()
-        data object Loading : BeerListUiState()
-        class Error(val message: String) : BeerListUiState()
-        class Success(val beers: List<Beer>) : BeerListUiState()
+    sealed class BeerListAction {
+        class FilterByName(val name: String) : BeerListAction()
     }
 
-    private val _uiState: MutableStateFlow<BeerListUiState> = MutableStateFlow(BeerListUiState.Idle)
-    val uiState: StateFlow<BeerListUiState> get() = _uiState.asStateFlow()
+    private var _beers: Flow<PagingData<Beer>> = getPaginatedBeerListUseCase().cachedIn(viewModelScope)
+    private var _query: MutableStateFlow<String> = MutableStateFlow("")
 
-    init {
-        fetchBeers()
-    }
+    private val query: StateFlow<String> = _query.asStateFlow()
 
-    private fun fetchBeers() {
-        viewModelScope.launch {
-            _uiState.value = BeerListUiState.Loading
-            getBeersListUseCase().onSuccess {
-                _uiState.value = BeerListUiState.Success(it)
-            }.onFailure {
-                _uiState.value = BeerListUiState.Error(it.message.orEmpty())
-            }
+    val beers: Flow<PagingData<Beer>> = combine(_beers, query) { beers, query ->
+        beers.filter { beer -> beer.name.contains(query, true) }
+    }.cachedIn(viewModelScope)
+
+    fun handleAction(action: BeerListAction) {
+        when (action) {
+            is BeerListAction.FilterByName -> handleFilterByName(action.name)
         }
+    }
+
+    private fun handleFilterByName(input: String) {
+        _query.value = input
     }
 }

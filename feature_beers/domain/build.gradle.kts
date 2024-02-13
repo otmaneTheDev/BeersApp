@@ -39,4 +39,8 @@ dependencies {
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+
+    // Paging 3
+    implementation("androidx.paging:paging-common-ktx:3.2.1")
+    implementation("androidx.paging:paging-runtime-ktx:3.2.1")
 }

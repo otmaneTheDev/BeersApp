@@ -4,11 +4,11 @@ import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
-class Beer(
+data class Beer(
     val id: Int,
     val name: String,
     val description: String,
-    val imageUrl: String,
+    val imageUrl: String?,
     val date: String,
     val abv: Float,
     val ph: Float,

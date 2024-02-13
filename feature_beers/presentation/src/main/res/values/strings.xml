@@ -1,6 +1,8 @@
 <resources>
     <string name="beers_list_title">Beers</string>
     <string name="beers_list_error_msg">Error loading beers!</string>
+    <string name="beers_list_search_hint">Search for beer …</string>
+    <string name="beers_list_empty_search">No results for your search.</string>
 
     <string name="beer_detail_lbl_description">Description</string>
     <string name="beer_detail_lbl_malts">Malts</string>

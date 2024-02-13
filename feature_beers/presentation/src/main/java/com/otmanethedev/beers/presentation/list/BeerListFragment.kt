@@ -1,18 +1,20 @@
 package com.otmanethedev.beers.presentation.list
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.otmanethedev.beers.domain.models.Beer
+import androidx.paging.CombinedLoadStates
+import androidx.paging.LoadState
 import com.otmanethedev.beers.presentation.R
 import com.otmanethedev.beers.presentation.databinding.FragmentBeerListBinding
-import com.otmanethedev.beers.presentation.list.BeerListViewModel.BeerListUiState
-import com.otmanethedev.beers.presentation.list.adapters.BeerRvAdapter
+import com.otmanethedev.beers.presentation.list.BeerListViewModel.BeerListAction
+import com.otmanethedev.beers.presentation.list.adapters.BeerPagedRvAdapter
 import com.otmanethedev.core.base.BaseFragment
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -21,7 +23,7 @@ import kotlinx.coroutines.launch
 class BeerListFragment : BaseFragment<FragmentBeerListBinding>() {
 
     override val viewModel: BeerListViewModel by viewModels()
-    private val beerRvAdapter by lazy { BeerRvAdapter() }
+    private val beerRvAdapter by lazy { BeerPagedRvAdapter() }
 
     override fun setBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentBeerListBinding {
         return FragmentBeerListBinding.inflate(inflater, container, false)
@@ -38,13 +40,8 @@ class BeerListFragment : BaseFragment<FragmentBeerListBinding>() {
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.uiState.collect {
-                    when (it) {
-                        BeerListUiState.Idle -> Unit
-                        is BeerListUiState.Error -> handleError()
-                        BeerListUiState.Loading -> handleLoading(true)
-                        is BeerListUiState.Success -> handleSuccess(it.beers)
-                    }
+                viewModel.beers.collect {
+                    beerRvAdapter.submitData(it)
                 }
             }
         }
@@ -54,25 +51,23 @@ class BeerListFragment : BaseFragment<FragmentBeerListBinding>() {
         beerRvAdapter.itemClickListener = {
             navigate(BeerListFragmentDirections.actionBeerListToBeerDetail(it))
         }
-    }
+        beerRvAdapter.addLoadStateListener {
+            binding.rvBeers.isVisible = it.source.refresh is LoadState.NotLoading
+            binding.loading.isVisible = it.source.refresh is LoadState.Loading
 
-    private fun handleLoading(isLoading: Boolean) {
-        if (isLoading) {
-            binding.loading.visibility = View.VISIBLE
-            binding.rvBeers.visibility = View.GONE
-        } else {
-            binding.loading.visibility = View.GONE
-            binding.rvBeers.visibility = View.VISIBLE
+            handleError(it)
+        }
+
+        binding.inputSearch.doAfterTextChanged { searchTxt ->
+            viewModel.handleAction(BeerListAction.FilterByName(searchTxt.toString()))
         }
     }
 
-    private fun handleSuccess(beers: List<Beer>) {
-        beerRvAdapter.updateList(beers)
-        handleLoading(false)
-    }
+    private fun handleError(loadState: CombinedLoadStates) {
+        val error = loadState.source.append as? LoadState.Error ?: loadState.source.append as? LoadState.Error
 
-    private fun handleError() {
-        binding.txtError.text = getString(R.string.beers_list_error_msg)
-        handleLoading(false)
+        error?.let {
+            Toast.makeText(context, R.string.beers_list_error_msg, Toast.LENGTH_SHORT).show()
+        }
     }
 }
